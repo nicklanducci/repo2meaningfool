@@ -1,1 +1,458 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <title>Vertical x3 • Framed Rectangles with Underlay</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background:#000000;
+      color:#fff;
+      overflow:hidden;
+    }
 
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-weight: 700;
+    }
+
+    .stage {
+      position: fixed;
+      inset: 0;
+      background:#000000;
+    }
+
+    .frame {
+      position:absolute;
+      background:#ff5958;
+      z-index:1;
+      transition: background-color 5s linear;
+    }
+
+    .viewport {
+      position: absolute;
+      overflow: hidden;
+      background:#000000;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      box-sizing: content-box;
+      z-index:2;
+    }
+
+    .viewport-bg {
+      position:absolute;
+      inset:0;
+      background:#000;
+      opacity:1;
+      pointer-events:none;
+      z-index:1;
+      overflow:hidden;
+      visibility:hidden; /* hidden during text phase */
+    }
+
+    .viewport-bg video {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .viewport-bg.video-left  video { object-position: 0% center; }
+    .viewport-bg.video-center video { object-position: 50% center; }
+    .viewport-bg.video-right video { object-position: 100% center; }
+
+    .inner {
+      width:100%;
+      height:100%;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      pointer-events:none;
+      position:relative;
+      z-index:4;   /* text always above video + gradient */
+      opacity:1;
+      transition: opacity 0.2s linear;
+    }
+
+    .viewport.mode-left .inner { align-items:flex-end; padding-bottom:90px; }
+    .viewport.mode-spine .inner { align-items:flex-start; padding-top:50px; }
+
+    .line {
+      writing-mode: vertical-rl;
+      white-space: nowrap;
+      line-height: 1.1;
+      font-size: clamp(28px, 6vw, 120px);
+      will-change: transform;
+      user-select: none;
+    }
+
+    .line.left {
+      text-orientation: mixed;
+      transform-origin:center;
+      transform: rotate(180deg) translateY(0);
+    }
+
+    .line.spine {
+      text-orientation: sideways;
+      transform-origin:top center;
+      transform: translateY(0);
+    }
+
+    .line.left-big { font-size: clamp(28px, 7.2vw, 144px); }
+    .line.right-big { font-size: clamp(28px, 6.3vw, 126px); }
+
+    .cursor {
+      display:inline-block;
+      width:1ch;
+      text-align:center;
+      animation: blink 1s step-end infinite;
+    }
+    .cursor::after { content:"▌"; }
+
+    @keyframes blink { 50% { opacity:0; } }
+
+    /* =====================================
+       GRADIENT LAYER ON CENTER VIDEO
+       ===================================== */
+    .center-cover {
+      position:absolute;
+      top:0;
+      left:0;
+      width:100%;
+      height:400px; /* gradient height */
+      background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,1),
+        rgba(0,0,0,0)
+      );
+      pointer-events:none;
+      z-index:3; /* above video, below text */
+    }
+
+  </style>
+</head>
+
+<body>
+<div class="stage">
+
+  <!-- FRAMES -->
+  <div class="frame" style="left:272px; top:33px; width:407px; height:1010px;"></div>
+  <div class="frame" style="left:911px; top:14px; width:345px; height:995px;"></div>
+  <div class="frame" style="left:1438px; top:11px; width:382px; height:995px;"></div>
+
+  <!-- LEFT RECTANGLE -->
+  <div class="viewport mode-left" style="left:302px; top:63px; width:347px; height:950px;">
+    <div class="viewport-bg video-left"></div>
+    <div class="inner">
+      <div class="line left left-big" id="line-left">
+        <span id="text1"></span><span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER RECTANGLE -->
+  <div class="viewport mode-spine" style="left:946px; top:44px; width:275px; height:935px;">
+    <div class="viewport-bg video-center"></div>
+
+    <!-- GRADIENT OVERLAY -->
+    <div class="center-cover"></div>
+
+    <div class="inner">
+      <div class="line spine" id="line-center">
+        <span id="text2"></span><span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT RECTANGLE -->
+  <div class="viewport mode-left" style="left:1468px; top:41px; width:322px; height:935px;">
+    <div class="viewport-bg video-right"></div>
+    <div class="inner" style="padding-bottom:105px;">
+      <div class="line left right-big" id="line-right">
+        <span id="text3"></span><span class="cursor"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ========== SENTENCE SYSTEM ========== */
+
+const SENTENCES = [
+  "A monochrome surface contains every color.",
+  "The sculpture exists only when unseen.",
+  "This drawing erases itself as it is made.",
+  "A closed space remains fully accessible.",
+  "The work changes only when it stays the same.",
+  "A single point covers the whole wall.",
+  "The empty frame completes the image.",
+  "This photograph depicts what cannot be photographed.",
+  "A straight line bends around itself.",
+  "The title describes what the work is not.",
+  "The installation expands by being removed.",
+  "The material is immaterial.",
+  "The visible part is entirely hidden.",
+  "This performance occurs without happening.",
+  "The original is identical to its copy.",
+  "The floor is suspended from the ceiling.",
+  "The text reads what is not written.",
+  "This object is heavier than itself.",
+  "The audience completes a work that is already finished.",
+  "The concept exists without being conceived.",
+  "Every mark on the page is blank.",
+  "The frame surrounds nothing and contains everything.",
+  "This wall holds the absence of a wall.",
+  "The map precedes the territory it represents.",
+  "The sound is louder than silence.",
+  "The boundary extends beyond the space it encloses.",
+  "This image is smaller than its detail.",
+  "The negative space occupies more than the object.",
+  "A permanent work exists only temporarily.",
+  "The paper is folded without being bent.",
+  "This video plays without being recorded.",
+  "The shape is defined by what it excludes.",
+  "A fixed position moves continuously.",
+  "The idea is finished when it begins.",
+  "The center lies outside the work.",
+  "This space is both empty and full.",
+  "The label refers to something else.",
+  "The work exists only as its documentation.",
+  "The line has no length but extends infinitely.",
+  "The image is composed entirely of what is missing.",
+  "The projection illuminates darkness without light.",
+  "This floor plan describes a different building.",
+  "The sculpture is made entirely of nothing.",
+  "The performance lasts forever and ends immediately.",
+  "The origin is located in the future.",
+  "The work belongs to everyone and to no one.",
+  "The sequence begins at its conclusion.",
+  "This surface is both opaque and transparent.",
+  "The volume is silent and filled with sound.",
+  "The act of looking removes the work from view."
+];
+
+let sentencePool = [...SENTENCES];
+let currentSentence = "";
+
+function pickSentence() {
+  if (sentencePool.length === 0) {
+    sentencePool = [...SENTENCES];
+  }
+  let s;
+  do {
+    const poolIndex = Math.floor(Math.random() * sentencePool.length);
+    s = sentencePool.splice(poolIndex, 1)[0];
+  } while (s === currentSentence && SENTENCES.length > 1 && sentencePool.length > 0);
+
+  currentSentence = s;
+  return " " + s; // leading space for aesthetic
+}
+
+/* =============== TEXT LOGIC =============== */
+
+const CHAR_MS=170, SPACE_MS=280, COMMA_MS=520, PERIOD_MS=1000, DASH_MS=650;
+const BOTTOM_ROOM=160;
+const LERP_BASE=0.06, LERP_BOOST=0.10, LAG_THRESHOLD=36;
+
+function delayFor(ch){
+  if(ch===" ") return CHAR_MS+SPACE_MS;
+  if(/[,\u061B;]/.test(ch)) return CHAR_MS+COMMA_MS;
+  if(/[.!?]/.test(ch)) return CHAR_MS+PERIOD_MS;
+  if(/[\u2013\u2014-]/.test(ch)) return CHAR_MS+DASH_MS;
+  return CHAR_MS;
+}
+
+function setupColumn(viewport, line, isSpine, percent, px){
+  const span = line.querySelector("span");
+  let targetY = 0, currentY = 0;
+  let chars = [];
+
+  function compute(){
+    const contentH = line.scrollHeight;
+    const viewH = viewport.clientHeight;
+    const allowed = viewH - BOTTOM_ROOM;
+    const excess = contentH - allowed;
+    targetY = excess > 0 ? -excess : 0;
+  }
+
+  function apply(){
+    const shiftX = `calc(${percent}% + ${px}px)`;
+    if(isSpine){
+      line.style.transform = `translateX(${shiftX}) translateY(${currentY}px)`;
+    } else {
+      line.style.transform =
+        `translateX(${shiftX}) rotate(180deg) translateY(${currentY}px)`;
+    }
+  }
+
+  (function anim(){
+    requestAnimationFrame(anim);
+    const lag = targetY - currentY;
+    const ease = Math.abs(lag) > LAG_THRESHOLD ? LERP_BOOST : LERP_BASE;
+    currentY += lag * ease;
+    apply();
+  })();
+
+  function reset(){ targetY = 0; currentY = 0; apply(); }
+
+  function playOnce(text, done){
+    chars = [...text];
+    span.textContent = "";
+    reset();
+    let i = 0;
+
+    function type(){
+      if(i >= chars.length){
+        if(done) done();
+        return;
+      }
+      const ch = chars[i++];
+      span.textContent += ch;
+      compute();
+      setTimeout(type, delayFor(ch));
+    }
+    setTimeout(type, 600);
+  }
+
+  return { playOnce };
+}
+
+/* INIT COLUMNS */
+const vps = document.querySelectorAll(".viewport");
+const lns = document.querySelectorAll(".line");
+
+const columns = [
+  setupColumn(vps[0], lns[0], false, -20, 25),
+  setupColumn(vps[1], lns[1], true, 10, 0),
+  setupColumn(vps[2], lns[2], false, 25, -55),
+];
+
+const inners = document.querySelectorAll(".inner");
+function setTextVisible(v){
+  inners.forEach(el => el.style.opacity = v ? 1 : 0);
+}
+
+/* =============== VIDEO LOGIC (1 RANDOM TRIPTYCH VIDEO, NO REPEAT UNTIL 40 USED) =============== */
+
+const VIDEO_SOURCES = Array.from({length:40}, (_,i)=>`videos/${i+1}.mp4`);
+
+// pool of indices 0..39, consumed randomly, then refilled
+let videoPool = VIDEO_SOURCES.map((_,i)=>i);
+let lastVideoIndex = -1;
+
+function pickVideoIndex(){
+  if (videoPool.length === 0) {
+    videoPool = VIDEO_SOURCES.map((_,i)=>i);
+  }
+  let idx, poolIndex;
+  do {
+    poolIndex = Math.floor(Math.random()*videoPool.length);
+    idx = videoPool[poolIndex];
+  } while (idx === lastVideoIndex && VIDEO_SOURCES.length > 1 && videoPool.length > 1);
+
+  videoPool.splice(poolIndex, 1);
+  lastVideoIndex = idx;
+  return idx;
+}
+
+function initTriptych(){
+  const left   = document.querySelector('.viewport-bg.video-left');
+  const center = document.querySelector('.viewport-bg.video-center');
+  const right  = document.querySelector('.viewport-bg.video-right');
+
+  const bgs = [left, center, right];
+  const videos = bgs.map(bg=>{
+    const v=document.createElement("video");
+    v.muted=true;
+    v.loop=false;
+    v.autoplay=false;
+    v.playsInline=true;
+    v.setAttribute("playsinline","true");
+    v.setAttribute("webkit-playsinline","true");
+    bg.appendChild(v);
+    return v;
+  });
+
+  function setVisible(v){
+    bgs.forEach(bg=>bg.style.visibility = v ? "visible" : "hidden");
+  }
+
+  function playRandom(done){
+    const index = pickVideoIndex();
+    const src   = VIDEO_SOURCES[index] + "?v=" + Date.now();
+
+    // assign sources
+    videos.forEach(v=>{
+      v.onloadeddata = null;
+      v.src = src;
+    });
+
+    let readyCount = 0;
+
+    videos.forEach(v=>{
+      v.onloadeddata = () => {
+        readyCount++;
+        if (readyCount === videos.length) {
+          // all three slices ready -> start together
+          setTextVisible(false);
+          setVisible(true);
+          videos.forEach(v2=>{
+            v2.currentTime = 0;
+            v2.play().catch(()=>{});
+          });
+        }
+      };
+    });
+
+    videos[0].onended = () => {
+      videos.forEach(v=>{
+        v.pause();
+        v.removeAttribute("src");
+        v.load();
+      });
+      setVisible(false);
+      if(done) done();
+    };
+  }
+
+  return { playRandom };
+}
+
+const triptych = initTriptych();
+
+/* =============== ORCHESTRATION =============== */
+
+function startTextPhase(){
+  setTextVisible(true);
+
+  const sentence = pickSentence(); // same sentence for all 3 columns
+
+  columns[0].playOnce(sentence, ()=>{
+    setTimeout(startVideoPhase, 1000);
+  });
+
+  columns[1].playOnce(sentence);
+  columns[2].playOnce(sentence);
+}
+
+function startVideoPhase(){
+  triptych.playRandom(()=>startTextPhase());
+}
+
+startTextPhase();
+
+/* FRAME COLORS */
+const FRAME_COLORS=["#ff5958","#0092a3","#006cda"];
+let idx=0;
+setInterval(()=>{
+  idx=(idx+1)%3;
+  document.querySelectorAll('.frame')
+    .forEach(f=>f.style.backgroundColor=FRAME_COLORS[idx]);
+},60000);
+</script>
+</body>
+</html>
